@@ -1,8 +1,8 @@
-# ComfyUI-TLBVFI Node
+# ComfyUI-TLBVFI
 
-A custom node pack for ComfyUI that provides high-quality video frame interpolation using the **TLB-VFI** model.
+A LLM coded node pack for ComfyUI that provides video frame interpolation using the **TLB-VFI** model.
 
-This node is a wrapper for the official [TLB-VFI: Temporal-Aware Latent Brownian Bridge Diffusion for Video Frame Interpolation](https://github.com/ZonglinL/TLBVFI) project, allowing for easy integration into any ComfyUI workflow.
+This is a wrapper for the [TLB-VFI: Temporal-Aware Latent Brownian Bridge Diffusion for Video Frame Interpolation](https://github.com/ZonglinL/TLBVFI) project, allowing for integration into ComfyUI.
 
 ## Features
 -   **High-Quality Interpolation**: Leverages a powerful latent diffusion model to generate smooth and detailed in-between frames.
@@ -15,10 +15,12 @@ This node is a wrapper for the official [TLB-VFI: Temporal-Aware Latent Brownian
 Please follow these steps carefully to ensure the node is set up correctly.
 
 ### Step 1: Install the Custom Node
-If you are using the [ComfyUI-Manager](https://github.com/ltdrdata/ComfyUI-Manager), you can install this node from there.
+If you are using the [ComfyUI-Manager](https://github.com/Comfy-Org/ComfyUI-Manager), you can install this node from there.
 
-Alternatively, you can install it manually by cloning this repository into your `ComfyUI/custom_nodes/` directory:```bash
+Alternatively, you can install it manually by cloning this repository into your `ComfyUI/custom_nodes/` directory...
+
 # Navigate to your ComfyUI custom_nodes directory
+```bash
 cd ComfyUI/custom_nodes/
 
 # Clone this repository
@@ -106,4 +108,5 @@ This node is a wrapper implementation for ComfyUI. All credit for the model arch
       archivePrefix={arXiv},
       primaryClass={cs.CV},
 }
+
 ```
