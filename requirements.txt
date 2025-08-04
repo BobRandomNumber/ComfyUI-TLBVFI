@@ -1,0 +1,2 @@
+pytorch_lightning
+cupy-cuda11x
