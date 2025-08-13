@@ -12,7 +12,7 @@ import numpy as np
 import itertools
 import math
 from collections import OrderedDict
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_
 sys.path.append('../..')
 from VFI.archs.warplayer import warp
 from VFI.archs.transformer_layers import TFModel
@@ -645,3 +645,4 @@ if __name__ == "__main__":
     img1 = torch.randn((2, 3, w, w)).to(device)
     out = net(img0, img1)
     print(out[0].size())
+
