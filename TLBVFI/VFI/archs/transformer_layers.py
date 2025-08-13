@@ -9,7 +9,7 @@ import functools
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from timm.layers import DropPath, to_2tuple, trunc_normal_
 sys.path.append('../..')
 from VFI.archs.warplayer import warp
 
@@ -1052,3 +1052,4 @@ if __name__ == '__main__':
     # x1 = torch.randn((1, 3, height, width)).to(device)
     x = model(x)
     print(x.shape)
+
