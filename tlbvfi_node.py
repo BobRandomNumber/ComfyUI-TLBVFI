@@ -121,8 +121,15 @@ class TLBVFI_VFI:
 
         # Enable FP16 mixed precision on CUDA for ~30% speedup and 45% memory reduction
         # Uses custom convert_to_fp16() method to recursively convert all VQGAN submodules
+        use_fp16 = False
         if device.type == 'cuda':
-            model.convert_to_fp16()
+            try:
+                model.convert_to_fp16()
+                use_fp16 = True
+                print("TLBVFI: FP16 mixed precision enabled (Tensor Core acceleration)")
+            except Exception as e:
+                print(f"TLBVFI Warning: FP16 conversion failed, using FP32 fallback. Error: {e}")
+                use_fp16 = False
 
         # --- Prepare Images ---
         image_tensors = images.permute(0, 3, 1, 2).float()
@@ -154,7 +161,7 @@ class TLBVFI_VFI:
         # --- Main Interpolation Loop ---
         for i in tqdm(range(len(image_tensors) - 1), desc="TLBVFI Interpolating"):
             # Convert to FP16 when moving to CUDA device for consistency with model dtype
-            if device.type == 'cuda':
+            if use_fp16:
                 frame1 = image_tensors[i].unsqueeze(0).to(device=device, dtype=torch.float16)
                 frame2 = image_tensors[i+1].unsqueeze(0).to(device=device, dtype=torch.float16)
             else:
@@ -165,9 +172,20 @@ class TLBVFI_VFI:
             for _ in range(times_to_interpolate):
                 temp_frames = [current_frames[0]]
                 for j in range(len(current_frames) - 1):
-                    with torch.no_grad():
-                        mid_frame = model.sample(current_frames[j], current_frames[j+1], disable_progress=True)
-                    temp_frames.extend([mid_frame, current_frames[j+1]])
+                    try:
+                        with torch.no_grad():
+                            mid_frame = model.sample(current_frames[j], current_frames[j+1], disable_progress=True)
+                        temp_frames.extend([mid_frame, current_frames[j+1]])
+                    except RuntimeError as e:
+                        if "type" in str(e).lower() and use_fp16:
+                            # FP16 type mismatch detected during inference - should be rare if convert_to_fp16() worked
+                            raise RuntimeError(
+                                f"FP16 type mismatch during inference. This suggests a submodule wasn't properly converted. "
+                                f"Original error: {e}"
+                            )
+                        else:
+                            # Re-raise other runtime errors
+                            raise
                 current_frames = temp_frames
 
             # Write directly to pre-allocated CPU tensor
