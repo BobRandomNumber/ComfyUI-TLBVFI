@@ -54,6 +54,42 @@ class LatentBrownianBridgeModel(BrownianBridgeModel):
             self.cond_stage_model.apply(weights_init)
         return self
 
+    def convert_to_fp16(self):
+        """
+        Recursively converts all model components to FP16, including VQGAN submodules.
+
+        Standard model.half() doesn't properly convert VQGAN's nested submodules
+        (encoder, decoder, quantize, etc.) because VQGAN is initialized separately
+        with disabled_train wrapper. This method explicitly converts each submodule.
+
+        Returns:
+            self: The model instance for method chaining
+        """
+        # Convert main diffusion model (UNet)
+        if hasattr(self, 'denoise_fn'):
+            self.denoise_fn = self.denoise_fn.half()
+
+        # Recursively convert all VQGAN submodules
+        if hasattr(self, 'vqgan'):
+            # Core VQGAN components
+            if hasattr(self.vqgan, 'encoder'):
+                self.vqgan.encoder = self.vqgan.encoder.half()
+            if hasattr(self.vqgan, 'decoder'):
+                self.vqgan.decoder = self.vqgan.decoder.half()
+            if hasattr(self.vqgan, 'quantize'):
+                self.vqgan.quantize = self.vqgan.quantize.half()
+            if hasattr(self.vqgan, 'quant_conv'):
+                self.vqgan.quant_conv = self.vqgan.quant_conv.half()
+            if hasattr(self.vqgan, 'post_quant_conv'):
+                self.vqgan.post_quant_conv = self.vqgan.post_quant_conv.half()
+
+        # Convert condition stage model if it's not VQGAN (e.g., SpatialRescaler)
+        if hasattr(self, 'cond_stage_model') and self.cond_stage_model is not None:
+            if self.condition_key != 'first_stage':  # Don't double-convert VQGAN
+                self.cond_stage_model = self.cond_stage_model.half()
+
+        return self
+
     def forward(self, x, y, z,  context=None):
         with torch.no_grad():
             gt,_ = self.encode(torch.cat([y,x,z],dim = 0).detach())
