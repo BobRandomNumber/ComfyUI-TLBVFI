@@ -45,10 +45,13 @@ class VectorQuantizer(nn.Module):
         z = z.permute(0, 2, 3, 1).contiguous()
         z_flattened = z.view(-1, self.e_dim)
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
+        z_f = z_flattened.float()
+        emb_f = self.embedding.weight.float()
 
-        d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
-            torch.sum(self.embedding.weight**2, dim=1) - 2 * \
-            torch.matmul(z_flattened, self.embedding.weight.t())
+        d = torch.sum(z_f ** 2, dim=1, keepdim=True) + \
+            torch.sum(emb_f**2, dim=1) - 2 * \
+            torch.matmul(z_f, emb_f.t())
+        d = d.type(z_flattened.dtype)
 
         ## could possible replace this here
         # #\start...
@@ -187,7 +190,7 @@ class GumbelQuantize(nn.Module):
         z_q = einsum('b n h w, n d -> b d h w', soft_one_hot, self.embed.weight)
 
         # + kl divergence to the prior loss
-        qy = F.softmax(logits, dim=1)
+        qy = F.softmax(logits.float(), dim=1).type(logits.dtype)
         diff = self.kl_weight * torch.sum(qy * torch.log(qy * self.n_embed + 1e-10), dim=1).mean()
 
         ind = soft_one_hot.argmax(dim=1)
@@ -276,10 +279,13 @@ class VectorQuantizer2(nn.Module):
         z = rearrange(z, 'b c h w -> b h w c').contiguous()
         z_flattened = z.view(-1, self.e_dim)
         # distances from z to embeddings e_j (z - e)^2 = z^2 + e^2 - 2 e * z
+        z_f = z_flattened.float()
+        emb_f = self.embedding.weight.float()
 
-        d = torch.sum(z_flattened ** 2, dim=1, keepdim=True) + \
-            torch.sum(self.embedding.weight**2, dim=1) - 2 * \
-            torch.einsum('bd,dn->bn', z_flattened, rearrange(self.embedding.weight, 'n d -> d n'))
+        d = torch.sum(z_f ** 2, dim=1, keepdim=True) + \
+            torch.sum(emb_f**2, dim=1) - 2 * \
+            torch.einsum('bd,dn->bn', z_f, rearrange(emb_f, 'n d -> d n'))
+        d = d.type(z_flattened.dtype)
 
         min_encoding_indices = torch.argmin(d, dim=1)
         z_q = self.embedding(min_encoding_indices).view(z.shape)

@@ -82,11 +82,7 @@ class Attention(nn.Module):
         self.to_k = nn.Linear(dim, dim, bias = False)
         self.to_v = nn.Linear(dim, dim, bias = False)
 
-        self.attend = nn.Sequential(
-            nn.Softmax(dim = -1),
-            nn.Dropout(dropout)
-        )
-
+        self.dropout = dropout
         self.to_out = nn.Sequential(
             nn.Linear(dim, dim, bias = False),
             nn.Dropout(dropout)
@@ -139,7 +135,9 @@ class Attention(nn.Module):
 
         # attention
 
-        attn = self.attend(sim)
+        attn = torch.nn.functional.softmax(sim.float(), dim=-1).type(sim.dtype)
+        if self.dropout > 0:
+            attn = torch.nn.functional.dropout(attn, p=self.dropout, training=self.training)
 
         # aggregate
 

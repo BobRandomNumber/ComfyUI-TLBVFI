@@ -1,13 +1,12 @@
 [project]
 name = "TLBVFI"
 description = "wrapper for the TLB-VFI: Temporal-Aware Latent Brownian Bridge Diffusion for Video Frame Interpolation project"
-version = "0.1.4"
+version = "0.2.0"
 license = {file = "LICENSE"}
-dependencies = ["pytorch_lightning", "cupy-cuda11x"]
+dependencies = []
 
 [project.urls]
 Repository = "https://github.com/BobRandomNumber/ComfyUI-TLBVFI"
-#  Used by Comfy Registry https://registry.comfy.org
 
 [tool.comfy]
 PublisherId = "bobrandomnumber"

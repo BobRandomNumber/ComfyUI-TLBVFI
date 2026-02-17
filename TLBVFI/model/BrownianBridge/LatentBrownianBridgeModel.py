@@ -7,7 +7,6 @@ from tqdm.autonotebook import tqdm
 from einops import rearrange,repeat
 
 from model.BrownianBridge.BrownianBridgeModel import BrownianBridgeModel
-from model.BrownianBridge.base.modules.encoders.modules import SpatialRescaler
 from model.VQGAN.vqgan import VQFlowNetInterface
 
 
@@ -31,28 +30,13 @@ class LatentBrownianBridgeModel(BrownianBridgeModel):
             self.cond_stage_model = None
         elif self.condition_key == 'first_stage':
             self.cond_stage_model = self.vqgan ## VQGAN quantization
-        elif self.condition_key == 'SpatialRescaler':
-            self.cond_stage_model = SpatialRescaler(**vars(model_config.CondStageParams)) ## interpolation
         else:
             raise NotImplementedError
 
-    def get_ema_net(self):
-        return self
-
     def get_parameters(self):
-        if self.condition_key == 'SpatialRescaler':
-            print("get parameters to optimize: SpatialRescaler, UNet")
-            params = itertools.chain(self.denoise_fn.parameters(), self.cond_stage_model.parameters())
-        else:
-            print("get parameters to optimize: UNet")
-            params = self.denoise_fn.parameters()
+        print("get parameters to optimize: UNet")
+        params = self.denoise_fn.parameters()
         return params
-
-    def apply(self, weights_init):
-        super().apply(weights_init)
-        if self.cond_stage_model is not None:
-            self.cond_stage_model.apply(weights_init)
-        return self
 
     def forward(self, x, y, z,  context=None):
         with torch.no_grad():
@@ -103,22 +87,28 @@ class LatentBrownianBridgeModel(BrownianBridgeModel):
 
     @torch.no_grad()
     def sample(self, y, z, clip_denoised=False, sample_mid_step=False,scale = 0.5, disable_progress=False):
-        x = torch.zeros_like(y)
-        latent,phi_list = self.encode(torch.cat([y,x,z],0))
+        # VQGAN encoder works in float32
+        y_f32 = y.float()
+        z_f32 = z.float()
+        x = torch.zeros_like(y_f32)
+        latent,phi_list = self.encode(torch.cat([y_f32,x,z_f32], dim=0))
         
         latent = torch.stack(torch.chunk(latent,3),2)
-        context = latent
-
-        # Pass disable_progress to the sampling loop
-        imgs,one_step_imgs = self.latent_p_sample_loop(latent = latent,
-                                            y = latent,
-                                            context = context,
+        
+        # Determine the computation dtype from the UNet
+        compute_dtype = self.denoise_fn.time_embed[0].weight.dtype
+        
+        # Pass disable_progress to the sampling loop, ensuring inputs match compute_dtype
+        imgs,one_step_imgs = self.latent_p_sample_loop(latent = latent.to(compute_dtype),
+                                            y = latent.to(compute_dtype),
+                                            context = latent.to(compute_dtype),
                                             clip_denoised=clip_denoised,
                                             sample_mid_step=sample_mid_step,
                                             disable_progress=disable_progress)
 
         with torch.no_grad():
-            out = self.decode(imgs[-1].detach(), y,z,phi_list,scale = scale)
+            # VQGAN decoder works in float32
+            out = self.decode(imgs[-1].detach().float(), y_f32, z_f32, phi_list, scale=scale)
         return out
 
     @torch.no_grad()
