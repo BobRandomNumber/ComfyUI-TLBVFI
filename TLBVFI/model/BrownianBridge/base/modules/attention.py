@@ -74,8 +74,10 @@ def zero_module(module):
     return module
 
 
+from model.BrownianBridge.base.modules.diffusionmodules.util import GroupNorm32
+
 def Normalize(in_channels):
-    return torch.nn.GroupNorm(num_groups=32, num_channels=in_channels, eps=1e-6, affine=True)
+    return GroupNorm32(32, in_channels, eps=1e-6, affine=True)
 
 
 class LinearAttention(nn.Module):
@@ -90,7 +92,7 @@ class LinearAttention(nn.Module):
         b, c, h, w = x.shape
         qkv = self.to_qkv(x)
         q, k, v = rearrange(qkv, 'b (qkv heads c) h w -> qkv b heads c (h w)', heads = self.heads, qkv=3)
-        k = k.softmax(dim=-1)  
+        k = k.float().softmax(dim=-1).type(k.dtype)
         context = torch.einsum('bhdn,bhen->bhde', k, v)
         out = torch.einsum('bhde,bhdn->bhen', context, q)
         out = rearrange(out, 'b heads c (h w) -> b (heads c) h w', heads=self.heads, h=h, w=w)
@@ -138,7 +140,7 @@ class SpatialSelfAttention(nn.Module):
         w_ = torch.einsum('bij,bjk->bik', q, k)
 
         w_ = w_ * (int(c)**(-0.5))
-        w_ = torch.nn.functional.softmax(w_, dim=2)
+        w_ = torch.nn.functional.softmax(w_.float(), dim=2).type(w_.dtype)
 
         # attend to values
         v = rearrange(v, 'b c h w -> b c (h w)')
@@ -189,7 +191,7 @@ class CrossAttention(nn.Module):
             sim.masked_fill_(~mask, max_neg_value)
 
         # attention, what we cannot get enough of
-        attn = sim.softmax(dim=-1)
+        attn = sim.float().softmax(dim=-1).type(sim.dtype)
 
         out = einsum('b i j, b j d -> b i d', attn, v)
         out = rearrange(out, '(b h) n d -> b n (h d)', h=h)
@@ -337,7 +339,7 @@ class SpatialCrossAttentionWithPosEmb(nn.Module):
         sim = einsum('b i d, b j d -> b i j', q, k) * self.scale
 
         # attention, what we cannot get enough of
-        attn = sim.softmax(dim=-1)
+        attn = sim.float().softmax(dim=-1).type(sim.dtype)
 
         out = einsum('b i j, b j d -> b i d', attn, v)
         out = rearrange(out, '(b h) n d -> b n (h d)', h=heads)
